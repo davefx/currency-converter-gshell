@@ -1,8 +1,8 @@
 {
-  "uuid": "usd-try-gshell@arifesat.github.com",
-  "name": "USD-TRY",
-  "description": "USD (US Dollar) converted to TRY (Turkish Lira). Updates are received every 30 seconds.\n\nIt is a fork of Dollar-PKR. This extension uses economia.awesomeapi.com.br",
+  "uuid": "usd-eur-gshell@davefx.github.com",
+  "name": "USD-EUR",
+  "description": "USD (US Dollar) converted to EUR (Euro). Updates are received every 30 seconds.\n\nIt is a fork of Dollar-PKR. This extension uses economia.awesomeapi.com.br",
   "version": 4,
   "shell-version": ["47"],
-  "url": "https://github.com/arifesat/USD-TRY-GShell"
+  "url": "https://github.com/davefx/USD-EUR-GShell"
 }
