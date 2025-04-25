@@ -21,6 +21,8 @@ export default class Extension {
             schema_id: 'org.gnome.shell.extensions.currency-converter',
         });
 
+	this._settingsChangedId = null;
+
         this._button = null;
         this._label = null;
         this._refreshTimeout = null;
@@ -35,6 +37,10 @@ export default class Extension {
         });
 
         this._button.add_child(this._label);
+
+	this._settingsChangedId = this._settings.connect('changed', () => {
+	    this._updateConversion();
+	});
 
         // Compatible with GNOME 47 and 48+
         Main.panel.addToStatusArea('currency-converter', this._button, 0, 'center');
@@ -52,6 +58,11 @@ export default class Extension {
     }
 
     disable() {
+	if (this._settingsChangedId) {
+	    this._settings.disconnect(this._settingsChangedId);
+	    this._settingsChangedId = null;
+	}
+
         if (this._refreshTimeout) {
             GLib.Source.remove(this._refreshTimeout);
             this._refreshTimeout = null;
