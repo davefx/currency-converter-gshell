@@ -1,4 +1,4 @@
-# Dollar-EUR
+# Currency Converter
 ```
 Gnome-Shell v.(42, 43, 44, 45, 46, 47, 48) Extension, for conversion of USD to EUR on the center of the top panel.
 ```
@@ -15,7 +15,7 @@ Download via Gnome Extension Store: https://extensions.gnome.org/extension/6192/
 
 or
 
-cd /tmp && git clone https://github.com/davefx/currency-conversion-gshell.git && mv currency-conversion-gshell currency-conversion-gshell@davefx.github.com && cp -av currency-conversion-gshell@davefx.github.com ~/.local/share/gnome-shell/extensions/ && gnome-shell-extension-tool --enable-extension currency-conversion-gshell@davefx.github.com && rm -rf currency-conversion-gshell@davefx.github.com
+cd /tmp && git clone https://github.com/davefx/currency-converter-gshell.git && mv currency-converter-gshell currency-converter-gshell@davefx.github.com && cp -av currency-converter-gshell@davefx.github.com ~/.local/share/gnome-shell/extensions/ && gnome-shell-extension-tool --enable-extension currency-converter-gshell@davefx.github.com && rm -rf currency-converter-gshell@davefx.github.com
 
 
 
@@ -25,7 +25,7 @@ Last method is deprecated with the newer versions, just copy extension file to
 ```
 then restart GNOME Shell and run
 ```
-gnome-extensions enable currency-conversion-gshell@davefx.github.com
+gnome-extensions enable currency-converter-gshell@davefx.github.com
 ```
 To restart GNOME Shell in X11, pressing Alt+F2 to open the Run Dialog and enter restart 
 (or just r). 
