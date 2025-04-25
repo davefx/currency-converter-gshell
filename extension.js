@@ -9,8 +9,9 @@ import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import Soup from 'gi://Soup';
 import GLib from 'gi://GLib';
-import PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
-import Main from 'resource:///org/gnome/shell/ui/main.js';
+
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 let session;
 
