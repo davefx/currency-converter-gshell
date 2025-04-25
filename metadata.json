@@ -3,6 +3,6 @@
   "name": "USD-EUR",
   "description": "USD (US Dollar) converted to EUR (Euro). Updates are received every 30 seconds.\n\nIt is a fork of Dollar-PKR. This extension uses economia.awesomeapi.com.br",
   "version": 5,
-  "shell-version": ["47"],
+  "shell-version": ["47","48"],
   "url": "https://github.com/davefx/USD-EUR-GShell"
 }
