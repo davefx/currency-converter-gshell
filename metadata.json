@@ -4,5 +4,7 @@
   "description": "Configurable currency converter. Updates are received every 30 seconds.\n\nIt is a fork of Dollar-PKR. This extension uses economia.awesomeapi.com.br",
   "version": 5,
   "shell-version": ["47","48"],
-  "url": "https://github.com/davefx/currency-converter-gshell"
+  "url": "https://github.com/davefx/currency-converter-gshell",
+  "settings-schema": "org.gnome.shell.extensions.currency-converter",
+  "preferences": "prefs"
 }
