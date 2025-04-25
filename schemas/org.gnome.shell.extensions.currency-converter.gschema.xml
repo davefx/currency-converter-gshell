@@ -1,0 +1,13 @@
+<schemalist>
+  <schema id="org.gnome.shell.extensions.currency-converter" path="/org/gnome/shell/extensions/currency-converter/">
+    <key name="source-currency" type="s">
+      <default>'USD'</default>
+      <summary>Source currency</summary>
+    </key>
+    <key name="target-currency" type="s">
+      <default>'EUR'</default>
+      <summary>Target currency</summary>
+    </key>
+  </schema>
+</schemalist>
+
