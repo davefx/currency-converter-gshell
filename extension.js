@@ -5,22 +5,18 @@
 'use strict';
 
 import St from 'gi://St';
-import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import Soup from 'gi://Soup';
 import GLib from 'gi://GLib';
+import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 let session;
 
-export default class Extension {
+export default class CurrencyConverterExtension extends Extension {
     constructor() {
-        this._settings = new Gio.Settings({
-            schema_id: 'org.gnome.shell.extensions.currency-converter',
-        });
-
 	this._settingsChangedId = null;
 
         this._button = null;
@@ -29,7 +25,9 @@ export default class Extension {
     }
 
     enable() {
-        this._button = new PanelMenu.Button(0.0, 'Currency Converter', false);
+        this._settings = this.getSettings('org.gnome.shell.extensions.dfx-currency-converter');
+
+        this._button = new PanelMenu.Button(0.0, 'DFX Currency Converter', false);
         this._label = new St.Label({
             style_class: 'currency-label',
             text: 'Loading...',
@@ -43,7 +41,7 @@ export default class Extension {
 	});
 
         // Compatible with GNOME 47 and 48+
-        Main.panel.addToStatusArea('currency-converter', this._button, 0, 'center');
+        Main.panel.addToStatusArea('dfx-currency-converter', this._button, 0, 'center');
 
         this._refreshRateSeconds = 30;
         this._updateConversion();
@@ -58,6 +56,8 @@ export default class Extension {
     }
 
     disable() {
+	this._settings = null;
+
 	if (this._settingsChangedId) {
 	    this._settings.disconnect(this._settingsChangedId);
 	    this._settingsChangedId = null;
@@ -72,6 +72,11 @@ export default class Extension {
             this._button.destroy();
             this._button = null;
         }
+
+	if (this._label) {
+            this._label.destroy();
+            this._label = null;
+	}
 
         if (session) {
             session.abort();

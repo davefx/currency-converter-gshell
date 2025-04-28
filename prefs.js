@@ -1,18 +1,20 @@
 'use strict';
 
 import Gtk from 'gi://Gtk';
-import Gio from 'gi://Gio';
 import Soup from 'gi://Soup';
 import Adw from 'gi://Adw';
+import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-export default class CurrencyPrefs {
-    constructor() {
-        this._settings = new Gio.Settings({
-            schema_id: 'org.gnome.shell.extensions.currency-converter',
-        });
-    }
+export default class CurrencyPrefs extends ExtensionPreferences {
 
     fillPreferencesWindow(window) {
+        this._settings = this.getSettings('org.gnome.shell.extensions.dfx-currency-converter');
+
+        window.connect('close-request', () => {
+            // clean up here
+            this._settings = null;
+        });
+
         const page = new Adw.PreferencesPage();
         const group = new Adw.PreferencesGroup({ title: 'Currency Settings' });
 
@@ -93,7 +95,7 @@ export default class CurrencyPrefs {
                 });
 
             } catch (e) {
-                log(`Currency fetch failed: ${e}`);
+                console.log(`Currency fetch failed: ${e}`);
             }
         });
     }
