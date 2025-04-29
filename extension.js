@@ -16,7 +16,8 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 let session;
 
 export default class CurrencyConverterExtension extends Extension {
-    constructor() {
+    constructor(metadata) {
+        super(metadata);
 	this._settingsChangedId = null;
 
         this._button = null;
