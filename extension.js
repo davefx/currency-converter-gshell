@@ -57,8 +57,6 @@ export default class CurrencyConverterExtension extends Extension {
     }
 
     disable() {
-	this._settings = null;
-
 	if (this._settingsChangedId) {
 	    this._settings.disconnect(this._settingsChangedId);
 	    this._settingsChangedId = null;
@@ -83,6 +81,9 @@ export default class CurrencyConverterExtension extends Extension {
             session.abort();
             session = null;
         }
+
+	this._settings = null;
+
     }
 
     _updateConversion() {
@@ -107,7 +108,7 @@ export default class CurrencyConverterExtension extends Extension {
 
                 this._label.set_text(`1 ${source} = ${rate} ${target}`);
             } catch (e) {
-                log(`Currency fetch error: ${e}`);
+                console.log(`Currency fetch error: ${e}`);
                 this._label.set_text('Error fetching rate');
             }
         });
