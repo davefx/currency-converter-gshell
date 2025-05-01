@@ -8,7 +8,10 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Soup from 'gi://Soup';
 import GLib from 'gi://GLib';
-import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import Gtk from 'gi://Gtk';
+
+import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+import { ModalDialog } from 'resource:///org/gnome/shell/ui/modalDialog.js';
 
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -18,7 +21,7 @@ let session;
 export default class CurrencyConverterExtension extends Extension {
     constructor(metadata) {
         super(metadata);
-	this._settingsChangedId = null;
+        this._settingsChangedId = null;
 
         this._button = null;
         this._label = null;
@@ -29,17 +32,25 @@ export default class CurrencyConverterExtension extends Extension {
         this._settings = this.getSettings('org.gnome.shell.extensions.dfx-currency-converter');
 
         this._button = new PanelMenu.Button(0.0, 'DFX Currency Converter', false);
-        this._label = new St.Label({
+
+        this._label = new St.Button({
             style_class: 'currency-label',
-            text: 'Loading...',
-            y_align: Clutter.ActorAlign.CENTER,
+            label: 'Loading...',
+            reactive: true,
+            can_focus: true,
+            track_hover: true,
+        });
+
+        this._label.connect('clicked', () => {
+            this._openChartWindow();
         });
 
         this._button.add_child(this._label);
 
-	this._settingsChangedId = this._settings.connect('changed', () => {
-	    this._updateConversion();
-	});
+
+        this._settingsChangedId = this._settings.connect('changed', () => {
+            this._updateConversion();
+        });
 
         // Compatible with GNOME 47 and 48+
         Main.panel.addToStatusArea('dfx-currency-converter', this._button, 0, 'center');
@@ -57,10 +68,10 @@ export default class CurrencyConverterExtension extends Extension {
     }
 
     disable() {
-	if (this._settingsChangedId) {
-	    this._settings.disconnect(this._settingsChangedId);
-	    this._settingsChangedId = null;
-	}
+        if (this._settingsChangedId) {
+            this._settings.disconnect(this._settingsChangedId);
+            this._settingsChangedId = null;
+        }
 
         if (this._refreshTimeout) {
             GLib.Source.remove(this._refreshTimeout);
@@ -72,17 +83,17 @@ export default class CurrencyConverterExtension extends Extension {
             this._button = null;
         }
 
-	if (this._label) {
+        if (this._label) {
             this._label.destroy();
             this._label = null;
-	}
+        }
 
         if (session) {
             session.abort();
             session = null;
         }
 
-	this._settings = null;
+        this._settings = null;
 
     }
 
@@ -106,12 +117,25 @@ export default class CurrencyConverterExtension extends Extension {
                 const key = `${source}${target}`;
                 const rate = parseFloat(json[key].bid).toFixed(3);
 
-                this._label.set_text(`1 ${source} = ${rate} ${target}`);
+                this._label.set_label(`1 ${source} = ${rate} ${target}`);
             } catch (e) {
                 console.log(`Currency fetch error: ${e}`);
                 this._label.set_text('Error fetching rate');
             }
         });
     }
+
+    _openChartWindow() {
+
+        const source = this._settings.get_string('source-currency');
+        const target = this._settings.get_string('target-currency');
+
+        let script_path = this.path + "/currency-chart.py";
+
+        GLib.spawn_async(null, ["python3", script_path, source, target], null, GLib.SpawnFlags.SEARCH_PATH, null);
+    }
+
+
 }
+
 
