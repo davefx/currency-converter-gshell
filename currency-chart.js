@@ -1,6 +1,6 @@
 #!/usr/bin/env gjs
 
-imports.gi.versions.Gtk = "3.0";
+imports.gi.versions.Gtk = "4.0";
 const Gtk = imports.gi.Gtk;
 const Gdk = imports.gi.Gdk;
 const GObject = imports.gi.GObject;
@@ -9,20 +9,41 @@ const Cairo = imports.cairo;
 const GLib = imports.gi.GLib;
 const Gio = imports.gi.Gio;
 const ByteArray = imports.byteArray;
-const Mainloop = imports.mainloop;
+const Adw = imports.gi.Adw; // For modern styling if available
 
-// Initialize Gtk
-Gtk.init(null);
+// Initialize the application
+function main(args) {
+    if (args.length < 2) {
+        print("Usage: currency-chart BASE TARGET");
+        print("Example: currency-chart USD BRL");
+        return 1;
+    }
+
+    // Initialize GTK
+    Gtk.init();
+    
+    // Create the application
+    const app = new Gtk.Application({
+        application_id: 'com.example.currencychart'
+    });
+    
+    app.connect('activate', () => {
+        const win = new ChartWindow(app, args[0], args[1]);
+        win.present();
+    });
+    
+    return app.run([]);
+}
 
 // Chart window class
 const ChartWindow = GObject.registerClass(
-class ChartWindow extends Gtk.Window {
-    _init(base, target) {
+class ChartWindow extends Gtk.ApplicationWindow {
+    _init(app, base, target) {
         super._init({ 
+            application: app,
             title: `Exchange Rate Chart: ${base}/${target}`,
             default_width: 700,
-            default_height: 500,
-            window_position: Gtk.WindowPosition.CENTER
+            default_height: 500
         });
         
         // Initialize properties
@@ -35,18 +56,16 @@ class ChartWindow extends Gtk.Window {
         this._errorMessage = null;
         this._zoomLevel = 1.0;
         
-        // Set up window close handler
-        this.connect('delete-event', () => {
-            Mainloop.quit('mainloop');
-            return false;
-        });
-        
-        // Create main container
-        this._container = new Gtk.Box({ 
-            orientation: Gtk.Orientation.VERTICAL, 
+        // Create main container (vertical box)
+        this._container = new Gtk.Box({
+            orientation: Gtk.Orientation.VERTICAL,
             spacing: 10,
-            margin: 15
+            margin_start: 15,
+            margin_end: 15,
+            margin_top: 15,
+            margin_bottom: 15
         });
+        this.set_child(this._container);
         
         // Create toolbar
         const toolbar = new Gtk.Box({ 
@@ -57,21 +76,20 @@ class ChartWindow extends Gtk.Window {
         // Add refresh button
         const refreshButton = new Gtk.Button({ label: "Refresh" });
         refreshButton.connect("clicked", this._fetch_data.bind(this));
-        toolbar.pack_start(refreshButton, false, false, 0);
+        toolbar.append(refreshButton);
         
         // Add period selector
         const periodLabel = new Gtk.Label({ label: "Period:" });
-        toolbar.pack_start(periodLabel, false, false, 0);
+        toolbar.append(periodLabel);
         
-        this._periodCombo = new Gtk.ComboBoxText();
-        this._periodCombo.append_text("7 days");
-        this._periodCombo.append_text("30 days");
-        this._periodCombo.append_text("60 days");
-        this._periodCombo.set_active(1); // Default to 30 days
-        this._periodCombo.connect("changed", () => {
+        this._periodCombo = new Gtk.DropDown({
+            model: this._createPeriodModel(),
+            selected: 1 // Default to 30 days
+        });
+        this._periodCombo.connect("notify::selected", () => {
             this._fetch_data();
         });
-        toolbar.pack_start(this._periodCombo, false, false, 0);
+        toolbar.append(this._periodCombo);
         
         // Add zoom controls
         const zoomInButton = new Gtk.Button({ label: "+" });
@@ -79,7 +97,6 @@ class ChartWindow extends Gtk.Window {
             this._zoomLevel *= 1.2;
             this._drawingArea.queue_draw();
         });
-        toolbar.pack_end(zoomInButton, false, false, 0);
         
         const zoomOutButton = new Gtk.Button({ label: "-" });
         zoomOutButton.connect("clicked", () => {
@@ -87,33 +104,49 @@ class ChartWindow extends Gtk.Window {
             if (this._zoomLevel < 0.5) this._zoomLevel = 0.5;
             this._drawingArea.queue_draw();
         });
-        toolbar.pack_end(zoomOutButton, false, false, 0);
         
         const zoomResetButton = new Gtk.Button({ label: "Reset Zoom" });
         zoomResetButton.connect("clicked", () => {
             this._zoomLevel = 1.0;
             this._drawingArea.queue_draw();
         });
-        toolbar.pack_end(zoomResetButton, false, false, 0);
+
+        // Use a box for right-aligned buttons
+        const rightButtons = new Gtk.Box({
+            orientation: Gtk.Orientation.HORIZONTAL,
+            spacing: 5,
+            hexpand: true,
+            halign: Gtk.Align.END
+        });
+        rightButtons.append(zoomResetButton);
+        rightButtons.append(zoomOutButton);
+        rightButtons.append(zoomInButton);
+        toolbar.append(rightButtons);
         
-        this._container.pack_start(toolbar, false, false, 0);
+        this._container.append(toolbar);
         
-        // Create a DrawingArea for the chart with event handling
+        // Create drawing area for the chart
         this._drawingArea = new Gtk.DrawingArea();
-        this._drawingArea.set_size_request(650, 350);
-        this._drawingArea.connect("draw", this._onDraw.bind(this));
-        this._drawingArea.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | 
-                                   Gdk.EventMask.BUTTON_RELEASE_MASK | 
-                                   Gdk.EventMask.POINTER_MOTION_MASK);
-        this._drawingArea.connect("button-press-event", this._onButtonPress.bind(this));
-        this._container.pack_start(this._drawingArea, true, true, 0);
+        this._drawingArea.set_content_width(650);
+        this._drawingArea.set_content_height(350);
+        this._drawingArea.set_draw_func(this._onDraw.bind(this));
+        this._drawingArea.set_vexpand(true);
         
-        // Create a status bar
-        this._statusBar = new Gtk.Statusbar();
-        this._container.pack_end(this._statusBar, false, false, 0);
+        // Set up click gesture for the drawing area
+        const clickGesture = new Gtk.GestureClick();
+        clickGesture.connect('pressed', this._onPressed.bind(this));
+        this._drawingArea.add_controller(clickGesture);
         
-        // Add container to window
-        this.add(this._container);
+        this._container.append(this._drawingArea);
+        
+        // Create status label (replacing statusbar which is deprecated in GTK4)
+        this._statusLabel = new Gtk.Label({
+            label: "Starting...",
+            xalign: 0,
+            ellipsize: 3 // Pango.EllipsizeMode.END
+        });
+        this._statusLabel.add_css_class("statusbar");
+        this._container.append(this._statusLabel);
         
         // Schedule data fetch with a short delay to ensure UI is ready
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
@@ -122,18 +155,32 @@ class ChartWindow extends Gtk.Window {
         });
     }
 
+    _createPeriodModel() {
+        const stringList = new Gtk.StringList();
+        stringList.append("7 days");
+        stringList.append("30 days");
+        stringList.append("60 days");
+        return stringList;
+    }
+
     _detect_dark_theme() {
         const settings = Gtk.Settings.get_default();
         if (settings) {
-            const themeName = settings.get_property("gtk-theme-name", "light");
-            return themeName && themeName.toLowerCase().includes("dark");
+            return settings.gtk_application_prefer_dark_theme;
         }
         return false;
     }
 
     _get_period_days() {
-        const activeText = this._periodCombo ? this._periodCombo.get_active_text() : "30 days";
-        return parseInt(activeText.split(" ")[0]);
+        if (!this._periodCombo) return 30;
+        
+        const selected = this._periodCombo.get_selected();
+        switch(selected) {
+            case 0: return 7;
+            case 1: return 30;
+            case 2: return 60;
+            default: return 30;
+        }
     }
 
     _fetch_data() {
@@ -144,116 +191,69 @@ class ChartWindow extends Gtk.Window {
         this._showLoading();
 
         try {
-            // Create a session - this should work for all libsoup versions
+            // Create a session
             const session = new Soup.Session();
             
-            // For libsoup 3.x
+            // Create message with a GLib.Uri
+            let uri;
+            if (typeof GLib.Uri !== 'undefined' && GLib.Uri.parse) {
+                uri = GLib.Uri.parse(url, GLib.UriFlags.NONE);
+            } else {
+                // Fallback for older GLib
+                uri = url;
+            }
+            
+            let message;
             try {
-                // Create message with a GLib.Uri
-                let uri;
-                if (typeof GLib.Uri !== 'undefined' && GLib.Uri.parse) {
-                    uri = GLib.Uri.parse(url, GLib.UriFlags.NONE);
-                } else {
-                    // Fallback for older GLib
-                    uri = url;
-                }
-                
-                // Create a message - different constructors depending on libsoup version
-                let message;
-                
+                message = new Soup.Message({
+                    method: 'GET', 
+                    uri: uri
+                });
+            } catch (e) {
+                // Fallback method
+                message = Soup.Message.new('GET', url);
+            }
+            
+            if (!message) {
+                throw new Error("Could not create HTTP message");
+            }
+            
+            // Handle different versions of libsoup API
+            if (typeof session.send_async === 'function') {
                 try {
-                    message = new Soup.Message({
-                        method: 'GET', 
-                        uri: uri
+                    // Try to call send_async with priority parameter
+                    session.send_async(message, GLib.PRIORITY_DEFAULT, null, (session, result) => {
+                        this._handleSendAsyncResponse(session, result, message);
                     });
                 } catch (e) {
-                    // Fallback method
-                    message = Soup.Message.new('GET', url);
-                }
-                
-                if (!message) {
-                    throw new Error("Could not create HTTP message");
-                }
-                
-                // Handle different versions of libsoup 3.x API
-                if (typeof session.send_async === 'function') {
-                    // Method 1: Using send_async with various priority options
+                    // Alternative approach for different parameter order
                     try {
-                        // Try to call send_async with priority parameter
-                        session.send_async(message, GLib.PRIORITY_DEFAULT, null, (session, result) => {
+                        session.send_async(message, null, null, (session, result) => {
                             this._handleSendAsyncResponse(session, result, message);
                         });
-                    } catch (e) {
-                        // Alternative approach for different parameter order
-                        try {
-                            session.send_async(message, null, null, (session, result) => {
-                                this._handleSendAsyncResponse(session, result, message);
-                            });
-                        } catch (e2) {
-                            this._showError(`API error: ${e2.message}`);
-                        }
+                    } catch (e2) {
+                        this._showError(`API error: ${e2.message}`);
                     }
-                } else if (typeof session.request_http_async === 'function') {
-                    // Method 2: Some versions might have request_http_async instead
-                    session.request_http_async('GET', url, null, null, null, (session, result) => {
-                        try {
-                            const response = session.request_http_finish(result);
-                            if (!response) {
-                                throw new Error("Failed to get response");
-                            }
-                            
-                            const status = response.get_status();
-                            if (status !== 200) {
-                                throw new Error(`HTTP error: ${status}`);
-                            }
-                            
-                            const stream = response.get_body_stream();
-                            const bytes = Gio.MemoryOutputStream.new_resizable();
-                            bytes.splice(stream, Gio.OutputStreamSpliceFlags.CLOSE_TARGET, null);
-                            
-                            const data = bytes.steal_as_bytes().get_data();
-                            const text = ByteArray.toString(data);
-                            this._processResponse(text);
-                        } catch (e) {
-                            this._showError(`Response error: ${e.message}`);
-                        }
-                    });
-                } else if (typeof session.queue_message === 'function') {
-                    // Method 3: Fallback to queue_message for older libsoup
-                    session.queue_message(message, (session, msg) => {
-                        try {
-                            if (msg.status_code !== 200) {
-                                throw new Error(`HTTP error: ${msg.status_code}`);
-                            }
-                            
-                            const data = msg.response_body.data;
-                            this._processResponse(data);
-                        } catch (e) {
-                            this._showError(`Response error: ${e.message}`);
-                        }
-                    });
-                } else {
-                    // Method 4: Fallback to Gio directly 
-                    const file = Gio.File.new_for_uri(url);
-                    file.load_contents_async(null, (file, res) => {
-                        try {
-                            const [success, contents, etag_out] = file.load_contents_finish(res);
-                            if (success) {
-                                const responseText = ByteArray.toString(contents);
-                                this._processResponse(responseText);
-                            } else {
-                                throw new Error("Failed to download data");
-                            }
-                        } catch (e) {
-                            this._showError(`Gio error: ${e.message}`);
-                        }
-                    });
                 }
-            } catch (e) {
-                this._showError(`Error creating request: ${e.message}`);
+            } else {
+                // Fallback to Gio directly 
+                const file = Gio.File.new_for_uri(url);
+                file.load_contents_async(null, (file, res) => {
+                    try {
+                        const [success, contents, etag_out] = file.load_contents_finish(res);
+                        if (success) {
+                            const responseText = ByteArray.toString(contents);
+                            this._processResponse(responseText);
+                        } else {
+                            throw new Error("Failed to download data");
+                        }
+                    } catch (e) {
+                        this._showError(`Gio error: ${e.message}`);
+                    }
+                });
             }
         } catch (e) {
-            this._showError(`Error setting up session: ${e.message}`);
+            this._showError(`Error setting up request: ${e.message}`);
         }
     }
     
@@ -331,26 +331,26 @@ class ChartWindow extends Gtk.Window {
     _showLoading() {
         this._isLoading = true;
         this._errorMessage = null;
-        this._statusBar.push(0, "Loading data...");
+        this._statusLabel.set_text("Loading data...");
         this._drawingArea.queue_draw();
     }
 
     _hideLoading() {
         this._isLoading = false;
-        this._statusBar.push(0, `Showing ${this._dates.length} data points`);
+        this._statusLabel.set_text(`Showing ${this._dates.length} data points`);
     }
 
     _showError(message) {
         this._isLoading = false;
         this._errorMessage = message;
-        this._statusBar.push(0, `Error: ${message}`);
+        this._statusLabel.set_text(`Error: ${message}`);
         this._drawingArea.queue_draw();
     }
 
-    _onButtonPress(widget, event) {
-        // Get the chart area dimensions to determine data point
-        const width = widget.get_allocated_width();
-        const height = widget.get_allocated_height();
+    _onPressed(gesture, n_press, x, y) {
+        // Handle click events on the chart
+        const width = this._drawingArea.get_width();
+        const height = this._drawingArea.get_height();
         const paddingLeft = Math.max(60, width * 0.08);
         const paddingRight = Math.max(40, width * 0.06);
         const paddingTop = Math.max(50, height * 0.1);
@@ -359,22 +359,20 @@ class ChartWindow extends Gtk.Window {
         const chartWidth = width - paddingLeft - paddingRight;
         
         // Determine if click is within chart area
-        if (event.x >= paddingLeft && 
-            event.x <= width - paddingRight &&
-            event.y >= paddingTop &&
-            event.y <= height - paddingBottom) {
+        if (x >= paddingLeft && 
+            x <= width - paddingRight &&
+            y >= paddingTop &&
+            y <= height - paddingBottom) {
             
             // Calculate which data point was clicked
-            const dataIndex = Math.round((event.x - paddingLeft) / chartWidth * (this._values.length - 1));
+            const dataIndex = Math.round((x - paddingLeft) / chartWidth * (this._values.length - 1));
             
             if (dataIndex >= 0 && dataIndex < this._values.length) {
                 const value = this._values[dataIndex];
                 const date = this._dates[dataIndex];
-                this._statusBar.push(0, `${date}: ${value.toFixed(4)} ${this._base}/${this._target}`);
+                this._statusLabel.set_text(`${date}: ${value.toFixed(4)} ${this._base}/${this._target}`);
             }
         }
-        
-        return false;
     }
 
     _calculateNiceStep(min, max) {
@@ -396,10 +394,7 @@ class ChartWindow extends Gtk.Window {
         return niceFraction * magnitude / 5;
     }
 
-    _onDraw(widget, cr) {
-        const width = widget.get_allocated_width();
-        const height = widget.get_allocated_height();
-        
+    _onDraw(drawingArea, cr, width, height) {
         // Theme colors
         const bgColor = this._is_dark ? [0.12, 0.12, 0.12] : [1, 1, 1];
         const gridColor = this._is_dark ? [0.25, 0.25, 0.25] : [0.85, 0.85, 0.85];
@@ -618,34 +613,5 @@ class ChartWindow extends Gtk.Window {
     }
 });
 
-// Main entry point
-function main(args) {
-    if (args.length < 2) {
-        print("Usage: currency-chart BASE TARGET");
-        print("Example: currency-chart USD BRL");
-        return 1;
-    }
-
-    try {
-        // Create and show the window
-        const win = new ChartWindow(args[0], args[1]);
-        win.show_all();
-        
-        // Process any pending events before entering main loop
-        while (Gtk.events_pending())
-            Gtk.main_iteration();
-        
-        // Enter main loop
-        Mainloop.run('mainloop');
-        
-        return 0;
-    } catch (e) {
-        print(`ERROR: ${e.message}`);
-        if (e.stack) {
-            print(`Stack trace: ${e.stack}`);
-        }
-        return 1;
-    }
-}
-
+// Run the application
 main(ARGV);
