@@ -130,9 +130,9 @@ export default class CurrencyConverterExtension extends Extension {
         const source = this._settings.get_string('source-currency');
         const target = this._settings.get_string('target-currency');
 
-        let script_path = this.path + "/currency-chart.py";
+        let script_path = this.path + "/currency-chart.js";
 
-        GLib.spawn_async(null, ["python3", script_path, source, target], null, GLib.SpawnFlags.SEARCH_PATH, null);
+        GLib.spawn_async(null, ["gjs", script_path, source, target], null, GLib.SpawnFlags.SEARCH_PATH, null);
     }
 
 
