@@ -8,7 +8,6 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Soup from 'gi://Soup';
 import GLib from 'gi://GLib';
-import Gtk from 'gi://Gtk';
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { ModalDialog } from 'resource:///org/gnome/shell/ui/modalDialog.js';

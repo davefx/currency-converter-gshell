@@ -8,7 +8,6 @@ const Soup = imports.gi.Soup;
 const Cairo = imports.cairo;
 const GLib = imports.gi.GLib;
 const Gio = imports.gi.Gio;
-const ByteArray = imports.byteArray;
 const Adw = imports.gi.Adw; // For modern styling if available
 
 // Initialize the application
@@ -242,7 +241,7 @@ class ChartWindow extends Gtk.ApplicationWindow {
                     try {
                         const [success, contents, etag_out] = file.load_contents_finish(res);
                         if (success) {
-                            const responseText = ByteArray.toString(contents);
+                            const responseText = new TextDecoder().decode(contents);
                             this._processResponse(responseText);
                         } else {
                             throw new Error("Failed to download data");
@@ -294,7 +293,7 @@ class ChartWindow extends Gtk.ApplicationWindow {
                 bytes.splice(input_stream, Gio.OutputStreamSpliceFlags.CLOSE_TARGET, null);
                 
                 const data = bytes.steal_as_bytes().get_data();
-                const text = ByteArray.toString(data);
+                const text = TextDecoder().decode(data);
                 this._processResponse(text);
             } else {
                 throw new Error("No data received from server");
