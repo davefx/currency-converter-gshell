@@ -10,6 +10,33 @@ const GLib = imports.gi.GLib;
 const Gio = imports.gi.Gio;
 const Adw = imports.gi.Adw; // For modern styling if available
 
+
+// Utility function to convert bytes to string - with fallbacks
+function bytesToString(bytes) {
+    if (!bytes)
+        return '';
+        
+    // Try using modern TextDecoder first
+    try {
+        return new TextDecoder('utf-8').decode(bytes);
+    } catch (e) {
+        // Fallback to older methods
+        try {
+            // Method 1: Using Uint8Array and String.fromCharCode
+            const array = new Uint8Array(bytes);
+            return String.fromCharCode.apply(null, array);
+        } catch (e2) {
+            // Method 2: More compatible loop approach
+            let str = '';
+            const array = new Uint8Array(bytes);
+            for (let i = 0; i < array.length; i++) {
+                str += String.fromCharCode(array[i]);
+            }
+            return str;
+        }
+    }
+}
+
 // Initialize the application
 function main(args) {
     if (args.length < 2) {
@@ -241,7 +268,7 @@ class ChartWindow extends Gtk.ApplicationWindow {
                     try {
                         const [success, contents, etag_out] = file.load_contents_finish(res);
                         if (success) {
-                            const responseText = new TextDecoder().decode(contents);
+                            const responseText = bytesToString(contents);
                             this._processResponse(responseText);
                         } else {
                             throw new Error("Failed to download data");
@@ -293,13 +320,13 @@ class ChartWindow extends Gtk.ApplicationWindow {
                 bytes.splice(input_stream, Gio.OutputStreamSpliceFlags.CLOSE_TARGET, null);
                 
                 const data = bytes.steal_as_bytes().get_data();
-                const text = TextDecoder().decode(data);
+                const text = bytesToString(data);
                 this._processResponse(text);
             } else {
                 throw new Error("No data received from server");
             }
         } catch (e) {
-            this._showError(`Response handling error: ${e.message}`);
+            this._showError(`Response handling error: ${e.message} ${e.name}`);
         }
     }
     
